@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img;
 import 'dart:io';
+
+import 'package:img_classification/helper/image_classification_helper.dart';
 
 void main() {
   runApp(const MyApp());
@@ -32,29 +35,66 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  //TODO: make these more dev friendly
+  ImageClassificationHelper? _imageClassificationHelper;
+  Map<String, double>? _classification;
+  MapEntry<String, double>? _result;
+
   String _selectedPath = 'assets/image1.png';
+  String? _predictionLabel;
+  double? _predictionValue;
   File? _image;
   bool _showOverlay = false;
 
   Future<void> _pickFromCamera() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.camera);
-    _setOverlay(pickedFile);
+    // _setOverlay(pickedFile);
+    _processImage(pickedFile);
   }
 
   Future<void> _pickFromGallery() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    _setOverlay(pickedFile);
+    // _setOverlay(pickedFile);
+    _processImage(pickedFile);
   }
 
-  Future<void> _setOverlay(XFile? pickedFile) async {
+  // Process picked image
+  Future<void> _processImage(XFile? pickedFile) async {
     if (pickedFile != null) {
-      setState(() {
-        _image = File(pickedFile.path);
-        _showOverlay = true;
-      });
+      // Read image bytes from file
+      final imageData = File(pickedFile.path).readAsBytesSync();
+
+      // Decode image using package:image/image.dart (https://pub.dev/image)
+      final image = img.decodeImage(imageData);
+      setState(() {});
+      _classification = await _imageClassificationHelper?.inferenceImage(image!);
+      _result = (_classification!.entries.toList()
+            ..sort(
+              (a, b) => a.value.compareTo(b.value),
+            ))
+          .reversed
+          .first;
+      _setOverlay(pickedFile, _result);
     }
+  }
+
+  Future<void> _setOverlay(XFile pickedFile, MapEntry<String, double>? prediction) async {
+    setState(() {
+      _image = File(pickedFile.path);
+      _showOverlay = true;
+      _predictionLabel = prediction?.key ?? 'Unknown';
+      _predictionValue = prediction?.value ?? 0.0;
+      _predictionValue = _predictionValue! * 100;
+    });
+  }
+
+  @override
+  void initState() {
+    _imageClassificationHelper = ImageClassificationHelper();
+    _imageClassificationHelper!.initHelper();
+    super.initState();
   }
 
   @override
@@ -129,8 +169,8 @@ class _MyHomePageState extends State<MyHomePage> {
                               : imageHeight * 0.7,
                         ),
                       const SizedBox(height: 10),
-                      const Text(
-                        "Here's your picture",
+                      Text(
+                        '${_predictionLabel!} ${_predictionValue} %',
                         style: TextStyle(color: Colors.white),
                       ),
                       const SizedBox(height: 10),
@@ -139,6 +179,8 @@ class _MyHomePageState extends State<MyHomePage> {
                           setState(() {
                             _image = null;
                             _showOverlay = false;
+                            _predictionLabel = null;
+                            _predictionValue = null;
                           });
                         },
                         child: const Text('Close'),
