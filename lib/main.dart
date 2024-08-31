@@ -46,6 +46,13 @@ class _MyHomePageState extends State<MyHomePage> {
   File? _image;
   bool _showOverlay = false;
 
+  @override
+  void initState() {
+    _imageClassificationHelper = ImageClassificationHelper();
+    _imageClassificationHelper!.initHelper();
+    super.initState();
+  }
+
   Future<void> _pickFromCamera() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.camera);
@@ -88,13 +95,6 @@ class _MyHomePageState extends State<MyHomePage> {
       _predictionValue = prediction?.value ?? 0.0;
       _predictionValue = _predictionValue! * 100;
     });
-  }
-
-  @override
-  void initState() {
-    _imageClassificationHelper = ImageClassificationHelper();
-    _imageClassificationHelper!.initHelper();
-    super.initState();
   }
 
   @override
