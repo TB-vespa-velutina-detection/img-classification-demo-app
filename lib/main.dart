@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:image/image.dart' as img;
 import 'dart:io';
 
 import 'package:img_classification/helper/image_classification_helper.dart';
+import 'package:img_classification/model/image_classification_option.dart';
+import 'package:img_classification/model/option_enum.dart';
 
 void main() {
   runApp(const MyApp());
@@ -35,12 +36,15 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  static const String _imageNetFolder = 'assets/imageNet';
+  static const String _vespaVelutinaFolder = 'assets/vespaVelutina';
+
   //TODO: make these more dev friendly
   ImageClassificationHelper? _imageClassificationHelper;
   Map<String, double>? _classification;
   MapEntry<String, double>? _result;
 
-  String _selectedPath = 'assets/image1.png';
+  String? _selectedPath;
   String? _predictionLabel;
   double? _predictionValue;
   File? _image;
@@ -49,34 +53,40 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     _imageClassificationHelper = ImageClassificationHelper();
-    _imageClassificationHelper!.initHelper();
     super.initState();
   }
 
-  Future<void> _pickFromCamera() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.camera);
-    // _setOverlay(pickedFile);
-    _processImage(pickedFile);
+  Future<void> _setClassificationModel(String folderPath) async {
+    setState(() {
+      _selectedPath = folderPath;
+    });
+    ImageClassificationOption? options;
+    if (folderPath == _vespaVelutinaFolder) {
+      options = ImageClassificationOption(isBinary: true, binaryThreshold: 0.5, normalizeMethod: NormalizeMethod.none); //TODO: check model range values
+    } else {
+      options = ImageClassificationOption(
+          normalizeMethod: NormalizeMethod.zero_to_one);
+    }
+
+    await _imageClassificationHelper!.initHelper(
+      modelAssetPath: '${folderPath}/model.tflite',
+      labelsAssetPath: '${folderPath}/labels.txt',
+      separator: folderPath == _imageNetFolder ? '\n' : ',',
+      options: options,
+    );
   }
 
-  Future<void> _pickFromGallery() async {
+  Future<void> _pickPhotoFrom(ImageSource source) async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    // _setOverlay(pickedFile);
+    final pickedFile = await picker.pickImage(source: source);
     _processImage(pickedFile);
   }
 
   // Process picked image
   Future<void> _processImage(XFile? pickedFile) async {
     if (pickedFile != null) {
-      // Read image bytes from file
-      final imageData = File(pickedFile.path).readAsBytesSync();
-
-      // Decode image using package:image/image.dart (https://pub.dev/image)
-      final image = img.decodeImage(imageData);
-      setState(() {});
-      _classification = await _imageClassificationHelper?.inferenceImage(image!);
+      _classification =
+          await _imageClassificationHelper?.inferenceImage(pickedFile.path);
       _result = (_classification!.entries.toList()
             ..sort(
               (a, b) => a.value.compareTo(b.value),
@@ -87,13 +97,14 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  Future<void> _setOverlay(XFile pickedFile, MapEntry<String, double>? prediction) async {
+  Future<void> _setOverlay(
+      XFile pickedFile, MapEntry<String, double>? prediction) async {
     setState(() {
       _image = File(pickedFile.path);
       _showOverlay = true;
       _predictionLabel = prediction?.key ?? 'Unknown';
       _predictionValue = prediction?.value ?? 0.0;
-      _predictionValue = _predictionValue! * 100;
+      _predictionValue = _predictionValue!/* * 100*/;
     });
   }
 
@@ -119,34 +130,28 @@ class _MyHomePageState extends State<MyHomePage> {
                   children: [
                     ChoiceChip(
                       label: const Text('ImageNet'),
-                      selected: _selectedPath == 'assets/image1.png',
-                      onSelected: (selected) {
-                        setState(() {
-                          _selectedPath = 'assets/image1.png';
-                        });
-                      },
+                      selected: _selectedPath == _imageNetFolder,
+                      onSelected: (_) =>
+                          _setClassificationModel(_imageNetFolder),
                     ),
                     const SizedBox(width: 10),
                     ChoiceChip(
                       label: const Text('Vespa Velutina'),
-                      selected: _selectedPath == 'assets/image2.png',
-                      onSelected: (selected) {
-                        setState(() {
-                          _selectedPath = 'assets/image2.png';
-                        });
-                      },
+                      selected: _selectedPath == _vespaVelutinaFolder,
+                      onSelected: (_) =>
+                          _setClassificationModel(_vespaVelutinaFolder),
                     ),
                   ],
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton.icon(
-                  onPressed: _pickFromCamera,
+                  onPressed: () => _pickPhotoFrom(ImageSource.camera),
                   icon: const Icon(Icons.camera_alt),
                   label: const Text('Take a picture'),
                 ),
                 const SizedBox(height: 10),
                 ElevatedButton.icon(
-                  onPressed: _pickFromGallery,
+                  onPressed: () => _pickPhotoFrom(ImageSource.gallery),
                   icon: const Icon(Icons.photo),
                   label: const Text('Take from gallery'),
                 ),

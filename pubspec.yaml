@@ -14,7 +14,6 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
   image_picker: ^1.1.2
-  image: ^4.2.0 #TODO: Retirer cet dep et passer un path à la lib
   img_classification:
     path: ../img-classification-lib/img_classification
 
@@ -33,4 +32,5 @@ flutter:
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
   assets:
-    - assets/
+    - assets/imageNet/
+    - assets/vespaVelutina/
