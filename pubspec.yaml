@@ -33,4 +33,5 @@ flutter:
   #   - images/a_dot_ham.jpeg
   assets:
     - assets/imageNet/
+    - assets/imageNetQuant/
     - assets/vespaVelutina/

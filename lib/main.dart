@@ -37,9 +37,9 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   static const String _imageNetFolder = 'assets/imageNet';
+  static const String _imageNetQuantFolder = 'assets/imageNetQuant';
   static const String _vespaVelutinaFolder = 'assets/vespaVelutina';
 
-  //TODO: make these more dev friendly
   ImageClassificationHelper? _imageClassificationHelper;
   Map<String, double>? _classification;
   MapEntry<String, double>? _result;
@@ -49,6 +49,12 @@ class _MyHomePageState extends State<MyHomePage> {
   double? _predictionValue;
   File? _image;
   bool _showOverlay = false;
+
+  int _numThreads = 1;
+  bool _useGPU = false;
+  bool _useXNNPack = false;
+  double _binaryThreshold = 0.5;
+  NormalizeMethod _normalizeMethod = NormalizeMethod.none;
 
   @override
   void initState() {
@@ -60,19 +66,54 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       _selectedPath = folderPath;
     });
+    // Close the Interpreter Isolate of previous model
+    if (_imageClassificationHelper != null) {
+      _imageClassificationHelper!.close();
+      await _resetOptions();
+    }
+    ;
+
     ImageClassificationOption? options;
+    var separator = '\n';
     if (folderPath == _vespaVelutinaFolder) {
-      options = ImageClassificationOption(isBinary: true, binaryThreshold: 0.5, normalizeMethod: NormalizeMethod.none); //TODO: check model range values
-    } else {
+      separator = ',';
+      options = ImageClassificationOption(
+          isBinary: true,
+          binaryThreshold: _binaryThreshold,
+          normalizeMethod: NormalizeMethod.none);
+    } else if (folderPath == _imageNetFolder) {
       options = ImageClassificationOption(
           normalizeMethod: NormalizeMethod.zero_to_one);
+    } else {
+      options = ImageClassificationOption();
     }
 
     await _imageClassificationHelper!.initHelper(
       modelAssetPath: '${folderPath}/model.tflite',
       labelsAssetPath: '${folderPath}/labels.txt',
-      separator: folderPath == _imageNetFolder ? '\n' : ',',
+      separator: separator,
       options: options,
+    );
+  }
+
+  Future<void> _resetOptions() async {
+    _numThreads = 1;
+    _useGPU = false;
+    _useXNNPack = false;
+    _binaryThreshold = 0.5;
+    _normalizeMethod = NormalizeMethod.none;
+  }
+
+  Future<void> _reloadModel() async {
+    await _imageClassificationHelper!.changeOptions(
+      ImageClassificationOption(
+        numThreads: _numThreads,
+        useGpu: _useGPU,
+        useXnnPack: _useXNNPack,
+        normalizeMethod: _normalizeMethod,
+        isBinary: _selectedPath == _vespaVelutinaFolder,
+        binaryThreshold: _binaryThreshold,
+      ),
     );
   }
 
@@ -136,6 +177,13 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                     const SizedBox(width: 10),
                     ChoiceChip(
+                      label: const Text('ImageNet Quant'),
+                      selected: _selectedPath == _imageNetQuantFolder,
+                      onSelected: (_) =>
+                          _setClassificationModel(_imageNetQuantFolder),
+                    ),
+                    const SizedBox(width: 10),
+                    ChoiceChip(
                       label: const Text('Vespa Velutina'),
                       selected: _selectedPath == _vespaVelutinaFolder,
                       onSelected: (_) =>
@@ -144,14 +192,122 @@ class _MyHomePageState extends State<MyHomePage> {
                   ],
                 ),
                 const SizedBox(height: 20),
+                // Number of threads
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('Number of threads: '),
+                    DropdownButton<int>(
+                      value: _numThreads,
+                      items: List.generate(8, (index) => index + 1)
+                          .map((e) => DropdownMenuItem<int>(
+                                value: e,
+                                child: Text(e.toString()),
+                              ))
+                          .toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _numThreads = value!;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('Normalization method: '),
+                    DropdownButton<NormalizeMethod>(
+                      value: _normalizeMethod,
+                      items: NormalizeMethod.values
+                          .map((e) => DropdownMenuItem<NormalizeMethod>(
+                                value: e,
+                                child: Text(e.toString().split('.').last),
+                              ))
+                          .toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _normalizeMethod = value!;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                // GPU checkbox
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('GPU: '),
+                    Checkbox(
+                      value: _useGPU,
+                      onChanged: (value) {
+                        setState(() {
+                          _useGPU = value!;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                // XNNPack checkbox
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('XNNPack: '),
+                    Checkbox(
+                      value: _useXNNPack,
+                      onChanged: (value) {
+                        setState(() {
+                          _useXNNPack = value!;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                if (_selectedPath == _vespaVelutinaFolder)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text('Binary threshold: '),
+                      DropdownButton<double>(
+                        value: _binaryThreshold,
+                        items: List.generate(11, (index) => index * 0.1)
+                            .map((e) => DropdownMenuItem<double>(
+                                  value: e,
+                                  child: Text(e.toStringAsFixed(1)),
+                                ))
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _binaryThreshold = value!;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                const SizedBox(height: 20),
                 ElevatedButton.icon(
-                  onPressed: () => _pickPhotoFrom(ImageSource.camera),
+                  onPressed:
+                      _selectedPath == null ? null : () => _reloadModel(),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Reload Model'),
+                ),
+                const SizedBox(height: 10),
+                ElevatedButton.icon(
+                  onPressed: _selectedPath == null
+                      ? null
+                      : () => _pickPhotoFrom(ImageSource.camera),
                   icon: const Icon(Icons.camera_alt),
                   label: const Text('Take a picture'),
                 ),
                 const SizedBox(height: 10),
                 ElevatedButton.icon(
-                  onPressed: () => _pickPhotoFrom(ImageSource.gallery),
+                  onPressed: _selectedPath == null
+                      ? null
+                      : () => _pickPhotoFrom(ImageSource.gallery),
                   icon: const Icon(Icons.photo),
                   label: const Text('Take from gallery'),
                 ),
