@@ -104,7 +104,7 @@ class _MyHomePageState extends State<MyHomePage> {
       _showOverlay = true;
       _predictionLabel = prediction?.key ?? 'Unknown';
       _predictionValue = prediction?.value ?? 0.0;
-      _predictionValue = _predictionValue!/* * 100*/;
+      _predictionValue = _predictionValue! * 100;
     });
   }
 
