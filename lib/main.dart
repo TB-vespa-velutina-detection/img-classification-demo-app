@@ -331,7 +331,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         ),
                       const SizedBox(height: 10),
                       Text(
-                        '${_predictionLabel!} ${_predictionValue} %',
+                        '${_predictionLabel!} ${_predictionValue?.toStringAsFixed(2)} %',
                         style: TextStyle(color: Colors.white),
                       ),
                       const SizedBox(height: 10),
