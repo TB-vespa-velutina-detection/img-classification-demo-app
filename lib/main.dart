@@ -145,7 +145,9 @@ class _MyHomePageState extends State<MyHomePage> {
       _showOverlay = true;
       _predictionLabel = prediction?.key ?? 'Unknown';
       _predictionValue = prediction?.value ?? 0.0;
-      _predictionValue = _predictionValue! * 100;
+      if(_selectedPath != _imageNetQuantFolder) {
+        _predictionValue = _predictionValue! * 100;
+      }
     });
   }
 
@@ -175,14 +177,14 @@ class _MyHomePageState extends State<MyHomePage> {
                       onSelected: (_) =>
                           _setClassificationModel(_imageNetFolder),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 2),
                     ChoiceChip(
                       label: const Text('ImageNet Quant'),
                       selected: _selectedPath == _imageNetQuantFolder,
                       onSelected: (_) =>
                           _setClassificationModel(_imageNetQuantFolder),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 2),
                     ChoiceChip(
                       label: const Text('Vespa Velutina'),
                       selected: _selectedPath == _vespaVelutinaFolder,
